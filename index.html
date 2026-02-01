@@ -2,92 +2,128 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D 鏡位構圖生成器 V5 (保母級操作版)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D 鏡位大師 - 手機優化版 V8</title>
     <style>
-        /* 基礎設定 */
+        /* --- 基礎設定 --- */
         body { margin: 0; overflow: hidden; font-family: 'Arial', sans-serif; background-color: #1a1a1a; color: white; }
         #canvas-container { width: 100vw; height: 100vh; display: block; position: absolute; top: 0; left: 0; z-index: 1; }
 
-        /* 九宮格 */
+        /* --- 九宮格輔助線 --- */
         #grid-overlay {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 2;
             display: flex; flex-wrap: wrap;
         }
         .grid-cell { width: 33.33%; height: 33.33%; box-sizing: border-box; border: 1px solid rgba(255, 255, 255, 0.15); }
 
-        /* UI 面板 */
+        /* --- V8 新增：浮動的「打開設定」按鈕 --- */
+        #open-menu-btn {
+            position: absolute; top: 20px; left: 20px; z-index: 20;
+            padding: 10px 15px; background: #ffca28; color: #000;
+            border: none; border-radius: 30px; font-weight: bold; cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            font-size: 14px;
+            display: flex; align-items: center; gap: 5px;
+        }
+        #open-menu-btn:hover { background: #ffd54f; }
+
+        /* --- UI 面板 (預設隱藏，透過 class 控制顯示) --- */
         #ui-panel {
             position: absolute; top: 20px; right: 20px; width: 320px;
-            background: rgba(0, 0, 0, 0.9); padding: 20px; border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5); color: #fff; z-index: 10;
-            max-height: 90vh; overflow-y: auto; border: 1px solid #444;
+            background: rgba(0, 0, 0, 0.95); padding: 20px; border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.8); color: #fff; z-index: 30;
+            max-height: 85vh; overflow-y: auto; border: 1px solid #444;
+            display: none; /* V8 改動：預設隱藏 */
         }
 
-        h2 { margin-top: 0; font-size: 18px; border-bottom: 1px solid #555; padding-bottom: 10px; color: #4285f4; }
+        /* 當螢幕小於 600px (手機) 時的樣式調整 */
+        @media (max-width: 600px) {
+            #ui-panel {
+                top: 50%; left: 50%; right: auto; bottom: auto;
+                transform: translate(-50%, -50%); /* 居中顯示 */
+                width: 90%; /* 寬度佔 90% */
+                max-height: 90vh;
+            }
+        }
 
-        /* V5 新增：虛擬導航按鈕區 */
+        /* 面板標題列 (含關閉按鈕) */
+        .panel-header {
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid #555; padding-bottom: 10px; margin-bottom: 15px;
+        }
+        h2 { margin: 0; font-size: 18px; color: #ffeb3b; }
+        
+        #close-menu-btn {
+            background: none; border: none; color: #aaa; font-size: 24px; cursor: pointer; padding: 0 5px;
+        }
+        #close-menu-btn:hover { color: #fff; }
+
+        /* --- 導航按鈕區 --- */
         .nav-controls {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 5px;
-            margin-bottom: 15px;
-            background: #222;
-            padding: 10px;
-            border-radius: 6px;
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 15px;
+            background: #222; padding: 10px; border-radius: 6px;
         }
         .nav-btn {
-            padding: 10px 5px; background: #444; color: #fff; border: 1px solid #555;
+            padding: 12px 5px; background: #444; color: #fff; border: 1px solid #555;
             border-radius: 4px; cursor: pointer; font-size: 14px; text-align: center;
         }
         .nav-btn:hover { background: #555; }
+        .nav-btn:active { background: #666; } /* 按下效果 */
         .nav-label { grid-column: span 3; font-size: 12px; color: #aaa; text-align: center; margin-bottom: 5px;}
 
-        /* 通用 UI 元素 */
+        /* --- 通用輸入元件 --- */
         .control-group { margin-bottom: 12px; }
         label { display: block; margin-bottom: 5px; font-size: 13px; color: #ccc; }
         input[type="text"], input[type="number"], select, textarea {
-            width: 100%; padding: 8px; box-sizing: border-box; background: #222;
+            width: 100%; padding: 10px; /* 手機版加大觸控區 */
+            box-sizing: border-box; background: #222;
             border: 1px solid #555; color: white; border-radius: 4px; font-size: 14px;
         }
+
         .btn-primary {
-            width: 100%; padding: 12px; background: #4285f4; color: white; border: none;
+            width: 100%; padding: 12px; background: #ffca28; color: #000; border: none;
             border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px;
         }
-        .btn-primary:hover { background: #357abd; }
         .btn-secondary {
             width: 100%; padding: 8px; background: #333; color: #ddd; border: 1px solid #555;
             border-radius: 4px; cursor: pointer; font-size: 13px; margin-bottom: 15px;
         }
-        .btn-secondary:hover { background: #444; }
 
+        /* 結果顯示區 */
         #result-area {
             margin-top: 15px; padding: 10px; background: #111; border: 1px solid #333;
             border-radius: 4px; min-height: 80px; font-size: 12px; font-family: 'Courier New', monospace;
-            line-height: 1.4; word-wrap: break-word; color: #76ff03; user-select: text;
+            line-height: 1.4; word-wrap: break-word; color: #ffeb3b; user-select: text;
         }
     </style>
+    
     <script src="https://unpkg.com/three@0.126.0/build/three.min.js"></script>
     <script src="https://unpkg.com/three@0.126.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
     <div id="canvas-container"></div>
+    
     <div id="grid-overlay">
         <div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div>
         <div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div>
         <div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div>
     </div>
 
-    <div id="ui-panel">
-        <h2>🎥 鏡位大師 V5 (保母版)</h2>
-        
-        <button id="resetBtn" class="btn-secondary">↺ 畫面亂掉？點我一鍵重置</button>
+    <button id="open-menu-btn">⚙️ 參數設定</button>
 
-        <div class="nav-label">新手導航按鈕 (替代滑鼠)</div>
+    <div id="ui-panel">
+        <div class="panel-header">
+            <h2>🍌 鏡位大師</h2>
+            <button id="close-menu-btn">×</button>
+        </div>
+        
+        <button id="resetBtn" class="btn-secondary">↺ 畫面亂掉？點我重置</button>
+
+        <div class="nav-label">新手導航按鈕 (手機救星)</div>
         <div class="nav-controls">
-            <button class="nav-btn" id="navZoomIn">🔍 放大</button>
+            <button class="nav-btn" id="navZoomIn">➕ 放大</button>
             <button class="nav-btn" id="navUp">⬆️ 上移</button>
-            <button class="nav-btn" id="navZoomOut">🔍 縮小</button>
+            <button class="nav-btn" id="navZoomOut">➖ 縮小</button>
             <button class="nav-btn" id="navLeft">⬅️ 左轉</button>
             <button class="nav-btn" id="navDown">⬇️ 下移</button>
             <button class="nav-btn" id="navRight">➡️ 右轉</button>
@@ -108,13 +144,13 @@
             </select>
         </div>
         <div class="control-group">
-            <label>畫面比例 (Aspect Ratio)</label>
+            <label>畫面比例 (構圖參考)</label>
             <select id="aspectRatio">
-                <option value="--ar 16:9" selected>16:9 (橫向電影感)</option>
-                <option value="--ar 21:9">21:9 (超寬螢幕)</option>
-                <option value="--ar 4:3">4:3 (傳統電視)</option>
-                <option value="--ar 1:1">1:1 (方形 IG)</option>
-                <option value="--ar 9:16">9:16 (手機全螢幕)</option>
+                <option value="(16:9 aspect ratio)" selected>16:9 (橫向電影感)</option>
+                <option value="(21:9 aspect ratio)">21:9 (超寬螢幕)</option>
+                <option value="(4:3 aspect ratio)">4:3 (傳統電視)</option>
+                <option value="(1:1 aspect ratio)">1:1 (方形 IG)</option>
+                <option value="(9:16 aspect ratio)">9:16 (手機全螢幕)</option>
             </select>
         </div>
         <div class="control-group">
@@ -130,27 +166,57 @@
             <label>場景描述</label>
             <textarea id="sceneDesc" rows="3" placeholder="例如：一位男子在抽菸..."></textarea>
         </div>
-        <button id="generateBtn" class="btn-primary">生成 Prompt</button>
-        <div id="result-area">(調整構圖後，點擊按鈕生成...)</div>
+        
+        <button id="generateBtn" class="btn-primary">生成 Nano Banana 提示詞</button>
+        <div id="result-area">(調整畫面後點擊生成...)</div>
     </div>
 
     <script>
-        // --- 初始化 ---
+        // --- V8 新增：UI 開關邏輯 ---
+        const uiPanel = document.getElementById('ui-panel');
+        const openBtn = document.getElementById('open-menu-btn');
+        const closeBtn = document.getElementById('close-menu-btn');
+
+        // 打開選單
+        openBtn.addEventListener('click', () => {
+            uiPanel.style.display = 'block';
+            openBtn.style.display = 'none'; // 隱藏打開按鈕
+        });
+
+        // 關閉選單
+        closeBtn.addEventListener('click', () => {
+            uiPanel.style.display = 'none';
+            openBtn.style.display = 'flex'; // 顯示打開按鈕
+        });
+
+        // 預設先開啟一次讓使用者知道有選單，然後可以手動關
+        // 或者保留預設隱藏，這裡我設定：如果螢幕夠大(電腦)，預設開啟；手機預設關閉
+        if (window.innerWidth > 600) {
+            uiPanel.style.display = 'block';
+            openBtn.style.display = 'none';
+        }
+
+        // --- 1. 初始化 Three.js 場景 ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x202020); scene.fog = new THREE.Fog(0x202020, 5, 50);
+        scene.background = new THREE.Color(0x202020); 
+        scene.fog = new THREE.Fog(0x202020, 5, 50);
+
         const camera = new THREE.PerspectiveCamera(63, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const initialCamPos = new THREE.Vector3(-3, 3, 4); camera.position.copy(initialCamPos);
+        const initialCamPos = new THREE.Vector3(-3, 3, 4); 
+        camera.position.copy(initialCamPos);
+
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
         document.getElementById('canvas-container').appendChild(renderer.domElement);
+
         const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x333333); scene.add(gridHelper);
         const planeGeometry = new THREE.PlaneGeometry(20, 20);
         const planeMaterial = new THREE.MeshStandardMaterial({ color: 0x111111 });
         const plane = new THREE.Mesh(planeGeometry, planeMaterial);
         plane.rotation.x = -Math.PI / 2; plane.receiveShadow = true; scene.add(plane);
 
-        // --- 木偶人 ---
+        // --- 2. 建立木偶人 ---
         const dummyGroup = new THREE.Group();
         const material = new THREE.MeshStandardMaterial({ color: 0xccaa88, roughness: 0.5 });
         const headGroup = new THREE.Group(); headGroup.position.y = 1.75;
@@ -160,8 +226,8 @@
         const noseMat = new THREE.MeshStandardMaterial({ color: 0xff3333 }); 
         const nose = new THREE.Mesh(noseGeo, noseMat); nose.position.set(0, 0, 0.25); headGroup.add(nose);
         dummyGroup.add(headGroup);
-        const bodyGeo = new THREE.CylinderGeometry(0.25, 0.2, 0.7, 32);
-        const body = new THREE.Mesh(bodyGeo, material); body.position.y = 1.15; body.castShadow = true; dummyGroup.add(body);
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.2, 0.7, 32), material); 
+        body.position.y = 1.15; body.castShadow = true; dummyGroup.add(body);
         const armGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.7);
         const armL = new THREE.Mesh(armGeo, material); armL.position.set(0.35, 1.2, 0); armL.rotation.z = -0.2; dummyGroup.add(armL);
         const armR = new THREE.Mesh(armGeo, material); armR.position.set(-0.35, 1.2, 0); armR.rotation.z = 0.2; dummyGroup.add(armR);
@@ -170,53 +236,28 @@
         const legR = new THREE.Mesh(legGeo, material); legR.position.set(-0.15, 0.4, 0); dummyGroup.add(legR);
         scene.add(dummyGroup);
 
-        // --- 燈光 ---
         const ambientLight = new THREE.AmbientLight(0x404040, 1.5); scene.add(ambientLight);
         const dirLight = new THREE.DirectionalLight(0xffffff, 1.5); dirLight.position.set(5, 10, 7); dirLight.castShadow = true; scene.add(dirLight);
 
-        // --- 控制器 ---
+        // --- 3. 控制器 ---
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         const targetCenter = new THREE.Vector3(0, 1.2, 0);
         controls.target.copy(targetCenter); controls.update();
 
-        // --- V5 新功能：導航按鈕邏輯 ---
-        // 旋轉 (左右)
-        document.getElementById('navLeft').addEventListener('click', () => {
-            controls.autoRotate = false; camera.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), -0.1); controls.update();
-        });
-        document.getElementById('navRight').addEventListener('click', () => {
-            controls.autoRotate = false; camera.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.1); controls.update();
-        });
-        // 縮放 (前後) - 沿著相機視線方向移動
-        document.getElementById('navZoomIn').addEventListener('click', () => {
-            const direction = new THREE.Vector3(); camera.getWorldDirection(direction);
-            camera.position.add(direction.multiplyScalar(0.5)); controls.update();
-        });
-        document.getElementById('navZoomOut').addEventListener('click', () => {
-            const direction = new THREE.Vector3(); camera.getWorldDirection(direction);
-            camera.position.add(direction.multiplyScalar(-0.5)); controls.update();
-        });
-        // 平移 (上下) - 這裡簡單移動目標點和相機
-        document.getElementById('navUp').addEventListener('click', () => {
-            camera.position.y += 0.2; controls.target.y += 0.2; controls.update();
-        });
-        document.getElementById('navDown').addEventListener('click', () => {
-            camera.position.y -= 0.2; controls.target.y -= 0.2; controls.update();
-        });
+        // 按鈕監聽 (導航)
+        document.getElementById('navLeft').addEventListener('click', () => { controls.autoRotate = false; camera.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), -0.1); controls.update(); });
+        document.getElementById('navRight').addEventListener('click', () => { controls.autoRotate = false; camera.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.1); controls.update(); });
+        document.getElementById('navZoomIn').addEventListener('click', () => { const dir = new THREE.Vector3(); camera.getWorldDirection(dir); camera.position.add(dir.multiplyScalar(0.5)); controls.update(); });
+        document.getElementById('navZoomOut').addEventListener('click', () => { const dir = new THREE.Vector3(); camera.getWorldDirection(dir); camera.position.add(dir.multiplyScalar(-0.5)); controls.update(); });
+        document.getElementById('navUp').addEventListener('click', () => { camera.position.y += 0.2; controls.target.y += 0.2; controls.update(); });
+        document.getElementById('navDown').addEventListener('click', () => { camera.position.y -= 0.2; controls.target.y -= 0.2; controls.update(); });
+        document.getElementById('resetBtn').addEventListener('click', () => { camera.position.copy(initialCamPos); controls.target.copy(targetCenter); controls.update(); document.getElementById('focalLength').value = 35; updateCameraFOV(); });
 
-        // 重置按鈕
-        document.getElementById('resetBtn').addEventListener('click', () => {
-            camera.position.copy(initialCamPos); controls.target.copy(targetCenter); controls.update();
-            document.getElementById('focalLength').value = 35; updateCameraFOV();
-        });
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+        window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
         function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
         animate();
 
-        // --- 邏輯核心 ---
+        // --- 4. 生成邏輯 ---
         const focalInput = document.getElementById('focalLength');
         function updateCameraFOV() {
             const focalLength = parseFloat(focalInput.value); if(focalLength <= 0) return;
@@ -226,11 +267,12 @@
         focalInput.addEventListener('input', updateCameraFOV); updateCameraFOV();
 
         document.getElementById('generateBtn').addEventListener('click', () => {
-            const focalLen = focalInput.value; const aperture = document.getElementById('aperture').value;
-            const style = document.getElementById('style').value; const aspectRatio = document.getElementById('aspectRatio').value;
+            const focalLen = focalInput.value;
+            const aperture = document.getElementById('aperture').value;
+            const style = document.getElementById('style').value;
+            const aspectRatioTag = document.getElementById('aspectRatio').value;
             const userDesc = document.getElementById('sceneDesc').value.trim() || "a character standing";
 
-            // 1. 距離 (Shot Size)
             const distance = camera.position.distanceTo(controls.target);
             let shotType = "Medium Shot";
             if (distance < 1.5) shotType = "Extreme Close-up";
@@ -239,21 +281,17 @@
             else if (distance < 8.0) shotType = "Full Body Shot";
             else shotType = "Wide Shot";
 
-            // 2. 高度 (Angle)
             const heightDiff = camera.position.y - controls.target.y;
             let angleType = "Eye-level angle";
             if (heightDiff > 0.8) angleType = "High angle shot";
             else if (heightDiff < -0.5) angleType = "Low angle shot";
 
-            // 3. 方向 (Facing Direction) - V5 微調閾值
             let camDirX = camera.position.x - controls.target.x;
             let camDirZ = camera.position.z - controls.target.z;
             const length = Math.sqrt(camDirX * camDirX + camDirZ * camDirZ);
-            camDirZ /= length; 
-            const dotProduct = camDirZ;
+            camDirZ /= length; const dotProduct = camDirZ;
 
             let facingType = "";
-            // 將正面和背面的判定範圍縮小 (0.7 -> 0.8)，讓側面判定更明確
             if (dotProduct > 0.8) { facingType = ", Front view"; } 
             else if (dotProduct < -0.8) { facingType = ", Back view from behind"; } 
             else {
@@ -261,7 +299,7 @@
                 else { facingType = ", Side profile view facing right"; }
             }
 
-            const finalPrompt = `"${style}, ${userDesc}${facingType}, ${shotType}, ${angleType}, ${focalLen}mm lens, ${aperture}, depth of field, natural lighting, highly detailed --v 6.0 ${aspectRatio}"`;
+            const finalPrompt = `${style}, ${userDesc}${facingType}, ${shotType}, ${angleType}, ${focalLen}mm lens, ${aperture}, depth of field, natural lighting, highly detailed, ${aspectRatioTag}, (best quality), (masterpiece), (highres)`;
             document.getElementById('result-area').innerText = finalPrompt;
         });
     </script>

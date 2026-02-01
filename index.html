@@ -3,33 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D 鏡位大師 - V9 終極實戰版</title>
+    <title>3D 鏡位大師 - V11 直覺攝影版</title>
     <style>
         /* --- 基礎設定 --- */
         body { margin: 0; overflow: hidden; font-family: 'Arial', sans-serif; background-color: #1a1a1a; color: white; }
         #canvas-container { width: 100vw; height: 100vh; display: block; position: absolute; top: 0; left: 0; z-index: 1; }
 
-        /* --- 視覺輔助層 (九宮格 & 比例框) --- */
+        /* --- 視覺輔助層 --- */
         #overlay-container {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 2;
             display: flex; justify-content: center; align-items: center;
         }
-
-        /* 九宮格 (預設隱藏) */
+        
+        /* 九宮格 (預設隱藏，可開關) */
         #grid-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            display: none; /* JS 控制顯示 */
-            flex-wrap: wrap;
+            display: none; flex-wrap: wrap;
         }
         .grid-cell { width: 33.33%; height: 33.33%; box-sizing: border-box; border: 1px solid rgba(255, 255, 255, 0.2); }
 
-        /* V9 新增：綠色比例框 (Aspect Ratio Frame) */
+        /* V11 改動：綠框預設開啟，且無法關閉 */
         #aspect-frame {
             position: absolute;
             border: 2px solid #00ff00; /* 綠色實線 */
-            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); /* 框框外變暗，讓構圖更清楚 */
-            display: none; /* JS 控制顯示與大小 */
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7); /* 讓框框外面更暗，強調構圖 */
+            display: block; /* 強制顯示 */
             pointer-events: none;
+        }
+        
+        /* 中心準星 */
+        #center-marker {
+            position: absolute; top: 50%; left: 50%; width: 20px; height: 20px;
+            border-left: 2px solid rgba(255, 0, 0, 0.5); border-top: 2px solid rgba(255, 0, 0, 0.5);
+            transform: translate(-10px, -10px); pointer-events: none; z-index: 3;
+            display: block;
         }
 
         /* --- 手機設定按鈕 --- */
@@ -47,7 +54,7 @@
             background: rgba(0, 0, 0, 0.95); padding: 20px; border-radius: 10px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.8); color: #fff; z-index: 30;
             max-height: 85vh; overflow-y: auto; border: 1px solid #444;
-            display: none; /* 預設隱藏，電腦版會自動開 */
+            display: none;
         }
         @media (max-width: 600px) {
             #ui-panel {
@@ -63,63 +70,34 @@
         h2 { margin: 0; font-size: 18px; color: #ffeb3b; }
         #close-menu-btn { background: none; border: none; color: #aaa; font-size: 24px; cursor: pointer; }
 
-        /* V9 新增：顯示開關區 */
-        .toggle-group {
-            display: flex; gap: 10px; margin-bottom: 15px; background: #333; padding: 10px; border-radius: 6px;
-        }
-        .toggle-btn {
-            flex: 1; padding: 8px; font-size: 12px; cursor: pointer; border: 1px solid #555; border-radius: 4px;
-            background: #222; color: #aaa; text-align: center;
-        }
+        /* V11 改動：只剩九宮格按鈕 */
+        .toggle-group { display: flex; gap: 10px; margin-bottom: 15px; background: #333; padding: 10px; border-radius: 6px; }
+        .toggle-btn { width: 100%; padding: 10px; font-size: 13px; cursor: pointer; border: 1px solid #555; border-radius: 4px; background: #222; color: #aaa; text-align: center; }
         .toggle-btn.active { background: #4caf50; color: white; border-color: #4caf50; }
 
-        /* 導航按鈕 */
-        .nav-controls {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 15px;
-            background: #222; padding: 10px; border-radius: 6px;
-        }
-        .nav-btn {
-            padding: 12px 5px; background: #444; color: #fff; border: 1px solid #555;
-            border-radius: 4px; cursor: pointer; font-size: 14px; text-align: center;
-        }
+        .nav-controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 15px; background: #222; padding: 10px; border-radius: 6px; }
+        .nav-btn { padding: 12px 5px; background: #444; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer; font-size: 14px; text-align: center; }
         .nav-btn:active { background: #666; }
 
-        /* 輸入元件 */
         .control-group { margin-bottom: 12px; }
         label { display: block; margin-bottom: 5px; font-size: 13px; color: #ccc; }
-        input, select, textarea {
-            width: 100%; padding: 10px; box-sizing: border-box; background: #222;
-            border: 1px solid #555; color: white; border-radius: 4px; font-size: 14px;
-        }
+        input, select, textarea { width: 100%; padding: 10px; box-sizing: border-box; background: #222; border: 1px solid #555; color: white; border-radius: 4px; font-size: 14px; }
 
-        /* 按鈕樣式 */
-        .btn-primary {
-            width: 100%; padding: 12px; background: #ffca28; color: #000; border: none;
-            border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px;
-        }
-        .btn-copy {
-            width: 100%; padding: 12px; background: #00e676; color: #000; border: none;
-            border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px;
-            display: none; /* 生成後才顯示 */
-        }
+        .btn-primary { width: 100%; padding: 12px; background: #ffca28; color: #000; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px; }
+        .btn-copy { width: 100%; padding: 12px; background: #00e676; color: #000; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px; display: none; }
         
-        /* 結果區 */
-        #result-area {
-            margin-top: 15px; padding: 10px; background: #111; border: 1px solid #333;
-            border-radius: 4px; min-height: 60px; font-size: 12px; font-family: 'Courier New', monospace;
-            line-height: 1.4; word-wrap: break-word; color: #ffeb3b;
-        }
+        #result-area { margin-top: 15px; padding: 10px; background: #111; border: 1px solid #333; border-radius: 4px; min-height: 60px; font-size: 12px; font-family: 'Courier New', monospace; line-height: 1.4; word-wrap: break-word; color: #ffeb3b; }
 
-        /* 歷史紀錄區 */
-        #history-area {
-            margin-top: 20px; border-top: 1px solid #555; padding-top: 10px;
-        }
+        #history-area { margin-top: 20px; border-top: 1px solid #555; padding-top: 10px; }
         .history-title { font-size: 12px; color: #aaa; margin-bottom: 5px; }
-        .history-item {
-            background: #222; padding: 8px; margin-bottom: 5px; border-radius: 4px;
-            font-size: 11px; color: #ccc; cursor: pointer; border-left: 3px solid #555;
-        }
+        .history-item { background: #222; padding: 8px; margin-bottom: 5px; border-radius: 4px; font-size: 11px; color: #ccc; cursor: pointer; border-left: 3px solid #555; }
         .history-item:hover { background: #333; border-left-color: #ffca28; }
+
+        .disclaimer-box {
+            background: rgba(255, 152, 0, 0.15); border: 1px solid #ff9800; border-radius: 4px;
+            padding: 10px; margin-bottom: 15px; font-size: 12px; color: #ffb74d; line-height: 1.5;
+        }
+        .disclaimer-icon { font-size: 16px; margin-right: 5px; vertical-align: middle; }
 
     </style>
     
@@ -136,41 +114,36 @@
             <div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div>
         </div>
         <div id="aspect-frame"></div>
+        <div id="center-marker"></div>
     </div>
 
     <button id="open-menu-btn">⚙️ 參數設定</button>
 
     <div id="ui-panel">
         <div class="panel-header">
-            <h2>🍌 鏡位大師 V9</h2>
+            <h2>🍌 鏡位大師 V11</h2>
             <button id="close-menu-btn">×</button>
         </div>
 
         <label>視覺輔助 (Visual Aids)</label>
         <div class="toggle-group">
-            <div class="toggle-btn" id="toggleGrid">📅 九宮格</div>
-            <div class="toggle-btn" id="toggleFrame">🟩 比例框</div>
+            <div class="toggle-btn" id="toggleGrid">📅 九宮格開關</div>
         </div>
 
         <button id="resetBtn" class="btn-primary" style="background:#444; color:#ddd; margin-top:0; margin-bottom:15px; font-size:13px; padding:8px;">↺ 重置視角</button>
 
-        <div class="nav-label">新手導航 (手機救星)</div>
+        <div class="nav-label">手機變焦與移動 (Zoom & Move)</div>
         <div class="nav-controls">
-            <button class="nav-btn" id="navZoomIn">➕ 放大</button>
+            <button class="nav-btn" id="navZoomIn">➕ 拉近</button>
             <button class="nav-btn" id="navUp">⬆️ 上移</button>
-            <button class="nav-btn" id="navZoomOut">➖ 縮小</button>
+            <button class="nav-btn" id="navZoomOut">➖ 拉遠</button>
             <button class="nav-btn" id="navLeft">⬅️ 左轉</button>
             <button class="nav-btn" id="navDown">⬇️ 下移</button>
             <button class="nav-btn" id="navRight">➡️ 右轉</button>
         </div>
 
         <div class="control-group">
-            <label>焦段 (mm)</label>
-            <input type="number" id="focalLength" value="35" min="10" max="200">
-        </div>
-        
-        <div class="control-group">
-            <label>畫面比例 (連動綠框)</label>
+            <label>畫面比例 (構圖綠框)</label>
             <select id="aspectRatio">
                 <option value="16:9" selected>16:9 (橫向電影)</option>
                 <option value="9:16">9:16 (手機短影音)</option>
@@ -197,39 +170,39 @@
             <textarea id="sceneDesc" rows="3" placeholder="例如：一位男子在抽菸..."></textarea>
         </div>
         
+        <div class="disclaimer-box">
+            <span class="disclaimer-icon">📷</span>
+            <b>操作提示：</b><br>
+            請直接縮放或移動木偶人到綠框內的理想位置。「所見即所得」，不用擔心焦段數據。
+        </div>
+
         <button id="generateBtn" class="btn-primary">生成 Prompt</button>
         
         <div id="result-area">(點擊生成...)</div>
-        
         <button id="copyBtn" class="btn-copy">📋 複製 Prompt</button>
 
         <div id="history-area">
-            <div class="history-title">📜 歷史紀錄 (點擊可複製)</div>
+            <div class="history-title">📜 歷史紀錄</div>
             <div id="history-list"></div>
         </div>
     </div>
 
     <script>
-        // --- UI 開關與初始化 ---
+        // --- UI 控制 ---
         const uiPanel = document.getElementById('ui-panel');
         const openBtn = document.getElementById('open-menu-btn');
         const closeBtn = document.getElementById('close-menu-btn');
         
-        // 預設狀態：電腦開，手機關
-        if (window.innerWidth > 600) {
-            uiPanel.style.display = 'block'; openBtn.style.display = 'none';
-        } else {
-            uiPanel.style.display = 'none'; openBtn.style.display = 'flex';
-        }
+        if (window.innerWidth > 600) { uiPanel.style.display = 'block'; openBtn.style.display = 'none'; } 
+        else { uiPanel.style.display = 'none'; openBtn.style.display = 'flex'; }
 
         openBtn.addEventListener('click', () => { uiPanel.style.display = 'block'; openBtn.style.display = 'none'; });
         closeBtn.addEventListener('click', () => { uiPanel.style.display = 'none'; openBtn.style.display = 'flex'; });
 
-        // --- V9: 視覺輔助控制 ---
+        // --- 視覺輔助 ---
         const gridOverlay = document.getElementById('grid-overlay');
         const aspectFrame = document.getElementById('aspect-frame');
         const toggleGrid = document.getElementById('toggleGrid');
-        const toggleFrame = document.getElementById('toggleFrame');
         const aspectRatioSel = document.getElementById('aspectRatio');
 
         // 九宮格開關
@@ -240,57 +213,32 @@
             toggleGrid.classList.toggle('active', isGridOn);
         });
 
-        // 比例框開關
-        let isFrameOn = false;
-        toggleFrame.addEventListener('click', () => {
-            isFrameOn = !isFrameOn;
-            aspectFrame.style.display = isFrameOn ? 'block' : 'none';
-            toggleFrame.classList.toggle('active', isFrameOn);
-            if(isFrameOn) updateFrameSize(); // 開啟時更新一次尺寸
-        });
-
-        // 監聽比例下拉選單 -> 即時更新綠框
+        // 綠框邏輯：初始化即執行，且不再提供關閉
+        updateFrameSize();
         aspectRatioSel.addEventListener('change', updateFrameSize);
+        window.addEventListener('resize', updateFrameSize);
 
         function updateFrameSize() {
-            if (!isFrameOn) return;
-            const ratioStr = aspectRatioSel.value; // e.g., "16:9"
+            const ratioStr = aspectRatioSel.value;
             const parts = ratioStr.split(':');
             const ratioVal = parseFloat(parts[0]) / parseFloat(parts[1]);
-
-            // 計算最適合螢幕的框框大小 (留一點邊距)
             const margin = 40; 
             const maxW = window.innerWidth - margin;
             const maxH = window.innerHeight - margin;
-
-            let finalW, finalH;
-
-            // 先嘗試用最大寬度
-            finalW = maxW;
-            finalH = finalW / ratioVal;
-
-            // 如果高度爆了，改用最大高度反算
-            if (finalH > maxH) {
-                finalH = maxH;
-                finalW = finalH * ratioVal;
-            }
-
+            let finalW = maxW;
+            let finalH = finalW / ratioVal;
+            if (finalH > maxH) { finalH = maxH; finalW = finalH * ratioVal; }
             aspectFrame.style.width = finalW + 'px';
             aspectFrame.style.height = finalH + 'px';
         }
-        
-        // 視窗縮放時也要更新框框
-        window.addEventListener('resize', () => {
-            if(isFrameOn) updateFrameSize();
-        });
 
-
-        // --- Three.js 場景 ---
+        // --- Three.js 初始化 ---
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x202020); 
         scene.fog = new THREE.Fog(0x202020, 5, 50);
 
-        const camera = new THREE.PerspectiveCamera(63, window.innerWidth / window.innerHeight, 0.1, 1000);
+        // V11: 固定 FOV 為 50度 (接近 35mm-50mm 的人眼視角，比較自然)
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
         const initialCamPos = new THREE.Vector3(-3, 3, 4); 
         camera.position.copy(initialCamPos);
 
@@ -305,7 +253,6 @@
         const plane = new THREE.Mesh(planeGeometry, planeMaterial);
         plane.rotation.x = -Math.PI / 2; plane.receiveShadow = true; scene.add(plane);
 
-        // 木偶人
         const dummyGroup = new THREE.Group();
         const material = new THREE.MeshStandardMaterial({ color: 0xccaa88, roughness: 0.5 });
         const headGroup = new THREE.Group(); headGroup.position.y = 1.75;
@@ -337,63 +284,36 @@
         document.getElementById('navZoomOut').addEventListener('click', () => { const dir = new THREE.Vector3(); camera.getWorldDirection(dir); camera.position.add(dir.multiplyScalar(-0.5)); controls.update(); });
         document.getElementById('navUp').addEventListener('click', () => { camera.position.y += 0.2; controls.target.y += 0.2; controls.update(); });
         document.getElementById('navDown').addEventListener('click', () => { camera.position.y -= 0.2; controls.target.y -= 0.2; controls.update(); });
-        document.getElementById('resetBtn').addEventListener('click', () => { camera.position.copy(initialCamPos); controls.target.copy(targetCenter); controls.update(); document.getElementById('focalLength').value = 35; updateCameraFOV(); });
+        document.getElementById('resetBtn').addEventListener('click', () => { camera.position.copy(initialCamPos); controls.target.copy(targetCenter); controls.update(); });
 
         window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
         function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
         animate();
 
         // --- 生成邏輯 ---
-        const focalInput = document.getElementById('focalLength');
-        function updateCameraFOV() {
-            const focalLength = parseFloat(focalInput.value); if(focalLength <= 0) return;
-            const sensorHeight = 24; const fov = 2 * Math.atan(sensorHeight / (2 * focalLength)) * (180 / Math.PI);
-            camera.fov = fov; camera.updateProjectionMatrix();
-        }
-        focalInput.addEventListener('input', updateCameraFOV); updateCameraFOV();
-
-        // V9: Surprise Me 風格庫
-        const hiddenStyles = [
-            "Cyberpunk style, neon lights, futuristic city",
-            "Watercolor painting, soft pastel colors, artistic",
-            "Claymation style, stop motion, plasticine texture",
-            "Ukiyo-e style, japanese traditional art, woodblock print",
-            "Pixel art, 16-bit game style, retro",
-            "Steampunk, brass gears, steam, victorian industrial",
-            "Synthwave, retro 80s aesthetics, purple and teal grid",
-            "Polaroid photo, vintage film grain, flash photography"
-        ];
+        const hiddenStyles = ["Cyberpunk style, neon lights, futuristic city", "Watercolor painting, soft pastel colors, artistic", "Claymation style, stop motion, plasticine texture", "Ukiyo-e style, japanese traditional art, woodblock print", "Pixel art, 16-bit game style, retro", "Steampunk, brass gears, steam, victorian industrial", "Synthwave, retro 80s aesthetics, purple and teal grid", "Polaroid photo, vintage film grain, flash photography"];
 
         document.getElementById('generateBtn').addEventListener('click', () => {
-            const focalLen = focalInput.value;
-            // 光圈因為手機版選單太長，這裡簡化預設 f/1.8，或可自行從 HTML 加回選單
+            // V11: 自動設定萬用參數，使用者無感
+            const focalLen = "35"; // 萬用焦段
             const aperture = "f/1.8"; 
             
-            // 處理風格
             let style = document.getElementById('style').value;
-            if (style === "SURPRISE_ME") {
-                const randomIdx = Math.floor(Math.random() * hiddenStyles.length);
-                style = hiddenStyles[randomIdx];
-            }
+            if (style === "SURPRISE_ME") { style = hiddenStyles[Math.floor(Math.random() * hiddenStyles.length)]; }
 
-            const ratioVal = aspectRatioSel.value; // "16:9"
+            const ratioVal = aspectRatioSel.value;
             const aspectRatioTag = `(${ratioVal} aspect ratio)`;
             const userDesc = document.getElementById('sceneDesc').value.trim() || "a character standing";
 
             // 計算鏡位
             const distance = camera.position.distanceTo(controls.target);
             let shotType = "Medium Shot";
-            if (distance < 1.5) shotType = "Extreme Close-up";
-            else if (distance < 2.5) shotType = "Close-up";
-            else if (distance < 4.5) shotType = "Medium Shot";
-            else if (distance < 8.0) shotType = "Full Body Shot";
-            else shotType = "Wide Shot";
+            if (distance < 1.5) shotType = "Extreme Close-up"; else if (distance < 2.5) shotType = "Close-up"; else if (distance < 4.5) shotType = "Medium Shot"; else if (distance < 8.0) shotType = "Full Body Shot"; else shotType = "Wide Shot";
 
             // 計算角度
             const heightDiff = camera.position.y - controls.target.y;
             let angleType = "Eye-level angle";
-            if (heightDiff > 0.8) angleType = "High angle shot";
-            else if (heightDiff < -0.5) angleType = "Low angle shot";
+            if (heightDiff > 0.8) angleType = "High angle shot"; else if (heightDiff < -0.5) angleType = "Low angle shot";
 
             // 計算方向
             let camDirX = camera.position.x - controls.target.x;
@@ -402,67 +322,44 @@
             camDirZ /= length; const dotProduct = camDirZ;
 
             let facingType = "";
-            if (dotProduct > 0.8) { facingType = ", Front view"; } 
-            else if (dotProduct < -0.8) { facingType = ", Back view from behind"; } 
-            else {
-                if (camera.position.x > controls.target.x) { facingType = ", Side profile view facing left"; } 
-                else { facingType = ", Side profile view facing right"; }
-            }
+            if (dotProduct > 0.8) { facingType = ", Front view"; } else if (dotProduct < -0.8) { facingType = ", Back view from behind"; } else { if (camera.position.x > controls.target.x) { facingType = ", Side profile view facing left"; } else { facingType = ", Side profile view facing right"; } }
 
-            // 組合 Prompt
-            const finalPrompt = `${style}, ${userDesc}${facingType}, ${shotType}, ${angleType}, ${focalLen}mm lens, ${aperture}, depth of field, natural lighting, highly detailed, ${aspectRatioTag}, (best quality), (masterpiece), (highres)`;
+            // 位置感知
+            const dummyPos = new THREE.Vector3(0, 1.2, 0);
+            dummyPos.project(camera); 
+            let positionPrompt = "";
+            if (dummyPos.x < -0.2) { positionPrompt = ", subject on the left, rule of thirds"; } 
+            else if (dummyPos.x > 0.2) { positionPrompt = ", subject on the right, rule of thirds"; } 
+            else { positionPrompt = ", centered composition"; }
 
-            // 顯示結果
+            // 組合 Prompt (焦段和光圈雖然沒輸入，但自動補上讓 AI 畫得更好)
+            const finalPrompt = `${style}, ${userDesc}${facingType}, ${shotType}, ${angleType}${positionPrompt}, ${focalLen}mm lens, ${aperture}, depth of field, natural lighting, highly detailed, ${aspectRatioTag}, (best quality), (masterpiece), (highres)`;
+
             const resultArea = document.getElementById('result-area');
             resultArea.innerText = finalPrompt;
 
-            // 顯示複製按鈕
             const copyBtn = document.getElementById('copyBtn');
-            copyBtn.style.display = 'block';
-            copyBtn.innerText = '📋 複製 Prompt';
-            copyBtn.style.background = '#00e676';
-
-            // 加入歷史紀錄
+            copyBtn.style.display = 'block'; copyBtn.innerText = '📋 複製 Prompt'; copyBtn.style.background = '#00e676';
             addToHistory(finalPrompt);
         });
 
-        // V9: 一鍵複製功能
         const copyBtn = document.getElementById('copyBtn');
         copyBtn.addEventListener('click', () => {
             const text = document.getElementById('result-area').innerText;
             navigator.clipboard.writeText(text).then(() => {
-                copyBtn.innerText = '✅ 已複製！';
-                copyBtn.style.background = '#4caf50';
-                setTimeout(() => {
-                    copyBtn.innerText = '📋 複製 Prompt';
-                    copyBtn.style.background = '#00e676';
-                }, 2000);
-            }).catch(err => {
-                alert('複製失敗，請手動複製');
-            });
+                copyBtn.innerText = '✅ 已複製！'; copyBtn.style.background = '#4caf50';
+                setTimeout(() => { copyBtn.innerText = '📋 複製 Prompt'; copyBtn.style.background = '#00e676'; }, 2000);
+            }).catch(err => { alert('複製失敗，請手動複製'); });
         });
 
-        // V9: 歷史紀錄邏輯
         function addToHistory(text) {
             const list = document.getElementById('history-list');
             const item = document.createElement('div');
             item.className = 'history-item';
-            // 只顯示前 50 個字預覽
             item.innerText = text.substring(0, 50) + '...';
-            
-            // 點擊歷史紀錄可直接複製
-            item.addEventListener('click', () => {
-                navigator.clipboard.writeText(text);
-                alert('已複製舊 Prompt！');
-            });
-
-            // 插入到最前面
+            item.addEventListener('click', () => { navigator.clipboard.writeText(text); alert('已複製舊 Prompt！'); });
             list.insertBefore(item, list.firstChild);
-
-            // 保持最多 5 筆
-            if (list.children.length > 5) {
-                list.removeChild(list.lastChild);
-            }
+            if (list.children.length > 5) { list.removeChild(list.lastChild); }
         }
     </script>
 </body>

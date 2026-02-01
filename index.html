@@ -318,4 +318,152 @@
         const armGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.7);
         const armL = new THREE.Mesh(armGeo, material); armL.position.set(0.35, 1.2, 0); armL.rotation.z = -0.2; dummyGroup.add(armL);
         const armR = new THREE.Mesh(armGeo, material); armR.position.set(-0.35, 1.2, 0); armR.rotation.z = 0.2; dummyGroup.add(armR);
-        const
+        const legGeo = new THREE.CylinderGeometry(0.1, 0.08, 0.8);
+        const legL = new THREE.Mesh(legGeo, material); legL.position.set(0.15, 0.4, 0); dummyGroup.add(legL);
+        const legR = new THREE.Mesh(legGeo, material); legR.position.set(-0.15, 0.4, 0); dummyGroup.add(legR);
+        scene.add(dummyGroup);
+
+        const ambientLight = new THREE.AmbientLight(0x404040, 1.5); scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.5); dirLight.position.set(5, 10, 7); dirLight.castShadow = true; scene.add(dirLight);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        const targetCenter = new THREE.Vector3(0, 1.2, 0);
+        controls.target.copy(targetCenter); controls.update();
+
+        // 導航按鈕
+        document.getElementById('navLeft').addEventListener('click', () => { controls.autoRotate = false; camera.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), -0.1); controls.update(); });
+        document.getElementById('navRight').addEventListener('click', () => { controls.autoRotate = false; camera.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.1); controls.update(); });
+        document.getElementById('navZoomIn').addEventListener('click', () => { const dir = new THREE.Vector3(); camera.getWorldDirection(dir); camera.position.add(dir.multiplyScalar(0.5)); controls.update(); });
+        document.getElementById('navZoomOut').addEventListener('click', () => { const dir = new THREE.Vector3(); camera.getWorldDirection(dir); camera.position.add(dir.multiplyScalar(-0.5)); controls.update(); });
+        document.getElementById('navUp').addEventListener('click', () => { camera.position.y += 0.2; controls.target.y += 0.2; controls.update(); });
+        document.getElementById('navDown').addEventListener('click', () => { camera.position.y -= 0.2; controls.target.y -= 0.2; controls.update(); });
+        document.getElementById('resetBtn').addEventListener('click', () => { camera.position.copy(initialCamPos); controls.target.copy(targetCenter); controls.update(); document.getElementById('focalLength').value = 35; updateCameraFOV(); });
+
+        window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+        function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
+        animate();
+
+        // --- 生成邏輯 ---
+        const focalInput = document.getElementById('focalLength');
+        function updateCameraFOV() {
+            const focalLength = parseFloat(focalInput.value); if(focalLength <= 0) return;
+            const sensorHeight = 24; const fov = 2 * Math.atan(sensorHeight / (2 * focalLength)) * (180 / Math.PI);
+            camera.fov = fov; camera.updateProjectionMatrix();
+        }
+        focalInput.addEventListener('input', updateCameraFOV); updateCameraFOV();
+
+        // V9: Surprise Me 風格庫
+        const hiddenStyles = [
+            "Cyberpunk style, neon lights, futuristic city",
+            "Watercolor painting, soft pastel colors, artistic",
+            "Claymation style, stop motion, plasticine texture",
+            "Ukiyo-e style, japanese traditional art, woodblock print",
+            "Pixel art, 16-bit game style, retro",
+            "Steampunk, brass gears, steam, victorian industrial",
+            "Synthwave, retro 80s aesthetics, purple and teal grid",
+            "Polaroid photo, vintage film grain, flash photography"
+        ];
+
+        document.getElementById('generateBtn').addEventListener('click', () => {
+            const focalLen = focalInput.value;
+            // 光圈因為手機版選單太長，這裡簡化預設 f/1.8，或可自行從 HTML 加回選單
+            const aperture = "f/1.8"; 
+            
+            // 處理風格
+            let style = document.getElementById('style').value;
+            if (style === "SURPRISE_ME") {
+                const randomIdx = Math.floor(Math.random() * hiddenStyles.length);
+                style = hiddenStyles[randomIdx];
+            }
+
+            const ratioVal = aspectRatioSel.value; // "16:9"
+            const aspectRatioTag = `(${ratioVal} aspect ratio)`;
+            const userDesc = document.getElementById('sceneDesc').value.trim() || "a character standing";
+
+            // 計算鏡位
+            const distance = camera.position.distanceTo(controls.target);
+            let shotType = "Medium Shot";
+            if (distance < 1.5) shotType = "Extreme Close-up";
+            else if (distance < 2.5) shotType = "Close-up";
+            else if (distance < 4.5) shotType = "Medium Shot";
+            else if (distance < 8.0) shotType = "Full Body Shot";
+            else shotType = "Wide Shot";
+
+            // 計算角度
+            const heightDiff = camera.position.y - controls.target.y;
+            let angleType = "Eye-level angle";
+            if (heightDiff > 0.8) angleType = "High angle shot";
+            else if (heightDiff < -0.5) angleType = "Low angle shot";
+
+            // 計算方向
+            let camDirX = camera.position.x - controls.target.x;
+            let camDirZ = camera.position.z - controls.target.z;
+            const length = Math.sqrt(camDirX * camDirX + camDirZ * camDirZ);
+            camDirZ /= length; const dotProduct = camDirZ;
+
+            let facingType = "";
+            if (dotProduct > 0.8) { facingType = ", Front view"; } 
+            else if (dotProduct < -0.8) { facingType = ", Back view from behind"; } 
+            else {
+                if (camera.position.x > controls.target.x) { facingType = ", Side profile view facing left"; } 
+                else { facingType = ", Side profile view facing right"; }
+            }
+
+            // 組合 Prompt
+            const finalPrompt = `${style}, ${userDesc}${facingType}, ${shotType}, ${angleType}, ${focalLen}mm lens, ${aperture}, depth of field, natural lighting, highly detailed, ${aspectRatioTag}, (best quality), (masterpiece), (highres)`;
+
+            // 顯示結果
+            const resultArea = document.getElementById('result-area');
+            resultArea.innerText = finalPrompt;
+
+            // 顯示複製按鈕
+            const copyBtn = document.getElementById('copyBtn');
+            copyBtn.style.display = 'block';
+            copyBtn.innerText = '📋 複製 Prompt';
+            copyBtn.style.background = '#00e676';
+
+            // 加入歷史紀錄
+            addToHistory(finalPrompt);
+        });
+
+        // V9: 一鍵複製功能
+        const copyBtn = document.getElementById('copyBtn');
+        copyBtn.addEventListener('click', () => {
+            const text = document.getElementById('result-area').innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                copyBtn.innerText = '✅ 已複製！';
+                copyBtn.style.background = '#4caf50';
+                setTimeout(() => {
+                    copyBtn.innerText = '📋 複製 Prompt';
+                    copyBtn.style.background = '#00e676';
+                }, 2000);
+            }).catch(err => {
+                alert('複製失敗，請手動複製');
+            });
+        });
+
+        // V9: 歷史紀錄邏輯
+        function addToHistory(text) {
+            const list = document.getElementById('history-list');
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            // 只顯示前 50 個字預覽
+            item.innerText = text.substring(0, 50) + '...';
+            
+            // 點擊歷史紀錄可直接複製
+            item.addEventListener('click', () => {
+                navigator.clipboard.writeText(text);
+                alert('已複製舊 Prompt！');
+            });
+
+            // 插入到最前面
+            list.insertBefore(item, list.firstChild);
+
+            // 保持最多 5 筆
+            if (list.children.length > 5) {
+                list.removeChild(list.lastChild);
+            }
+        }
+    </script>
+</body>
+</html>

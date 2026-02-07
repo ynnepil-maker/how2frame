@@ -3,110 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D 鏡位大師 - V12 精準構圖版</title>
+    <title>3D 鏡位大師 - V13.1 靈魂歸位版</title>
     <style>
         /* --- 基礎設定 --- */
-        body { margin: 0; overflow: hidden; font-family: 'Arial', sans-serif; background-color: #1a1a1a; color: white; }
+        body { margin: 0; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #121212; color: white; }
         #canvas-container { width: 100vw; height: 100vh; display: block; position: absolute; top: 0; left: 0; z-index: 1; }
 
-        /* --- 視覺輔助層 --- */
+        /* --- 綠框與輔助線 --- */
         #overlay-container {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 2;
             display: flex; justify-content: center; align-items: center;
         }
-
-        /* V12 改動：綠框是老大，九宮格在裡面 */
         #aspect-frame {
             position: absolute;
-            border: 2px solid #00ff00; /* 綠色實線 */
-            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7); /* 暗角 */
-            display: block; 
-            pointer-events: none;
-            /* 讓內部的 grid-layer 可以撐滿 */
-            display: flex;
-            flex-wrap: wrap;
+            border: 2px solid #00ff00;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.85);
+            display: flex; flex-wrap: wrap; pointer-events: none;
+            transition: all 0.3s ease;
         }
-
-        /* V12 改動：九宮格層，住在 aspect-frame 裡面 */
         #grid-layer {
-            width: 100%; height: 100%;
-            display: none; /* 預設隱藏，由按鈕控制 */
-            flex-wrap: wrap;
+            width: 100%; height: 100%; display: none; flex-wrap: wrap;
         }
         .grid-cell { 
-            width: 33.33%; height: 33.33%; 
-            box-sizing: border-box; 
-            border: 1px solid rgba(255, 255, 255, 0.3); /* 半透明白線 */
+            width: 33.33%; height: 33.33%; box-sizing: border-box; 
+            border: 1px solid rgba(255, 255, 255, 0.25);
         }
         
-        /* 中心準星 */
-        #center-marker {
-            position: absolute; top: 50%; left: 50%; width: 20px; height: 20px;
-            border-left: 2px solid rgba(255, 0, 0, 0.6); border-top: 2px solid rgba(255, 0, 0, 0.6);
-            transform: translate(-10px, -10px); pointer-events: none; z-index: 3;
-            display: block;
+        /* --- POV 切換按鈕 --- */
+        #pov-toggle-btn {
+            position: absolute; top: 20px; right: 20px; z-index: 20;
+            width: 50px; height: 50px; border-radius: 50%;
+            background: rgba(40, 40, 40, 0.8); border: 2px solid #fff;
+            color: #fff; font-size: 24px; cursor: pointer;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            transition: transform 0.2s;
         }
+        #pov-toggle-btn:active { transform: scale(0.9); }
+        #pov-toggle-btn.active { background: #ff5252; border-color: #ff5252; box-shadow: 0 0 15px rgba(255, 82, 82, 0.6); }
 
-        /* --- 手機設定按鈕 --- */
+        /* --- 選單按鈕 --- */
         #open-menu-btn {
             position: absolute; top: 20px; left: 20px; z-index: 20;
-            padding: 12px 18px; /* 加大 */
-            background: #ffca28; color: #000;
-            border: none; border-radius: 30px; font-weight: bold; cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5); font-size: 16px; /* 加大字體 */
-            display: flex; align-items: center; gap: 5px;
+            padding: 10px 16px; background: rgba(0,0,0,0.6); color: #fff;
+            border: 1px solid #555; border-radius: 20px; font-size: 14px; cursor: pointer;
+            backdrop-filter: blur(5px);
         }
 
-        /* --- UI 面板 --- */
+        /* --- 鏡頭切換列 --- */
+        #lens-bar {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            z-index: 20; display: flex; gap: 12px;
+            background: rgba(0,0,0,0.8); padding: 10px 15px; border-radius: 30px;
+            backdrop-filter: blur(10px); border: 1px solid #333;
+        }
+        .lens-btn {
+            background: none; border: none; color: #888; font-size: 16px; font-weight: bold;
+            cursor: pointer; padding: 8px 12px; border-radius: 20px; transition: all 0.2s;
+            display: flex; flex-direction: column; align-items: center; gap: 2px;
+        }
+        .lens-btn span { font-size: 10px; font-weight: normal; opacity: 0.7; }
+        .lens-btn.active { background: #fff; color: #000; box-shadow: 0 0 10px rgba(255,255,255,0.3); transform: translateY(-2px); }
+        .lens-btn.macro-active { background: #ffeb3b; color: #000; }
+
+        /* --- 側邊面板 --- */
         #ui-panel {
-            position: absolute; top: 20px; right: 20px; width: 340px; /*稍微加寬*/
-            background: rgba(0, 0, 0, 0.95); padding: 25px; /*加大內距*/
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.8); color: #fff; z-index: 30;
-            max-height: 85vh; overflow-y: auto; border: 1px solid #444;
-            display: none;
+            position: absolute; top: 0; left: 0; width: 320px; height: 100vh;
+            background: rgba(18, 18, 18, 0.98); z-index: 30;
+            padding: 20px; box-sizing: border-box; transform: translateX(-100%); transition: transform 0.3s ease;
+            overflow-y: auto; border-right: 1px solid #333;
         }
-        @media (max-width: 600px) {
-            #ui-panel {
-                top: 50%; left: 50%; transform: translate(-50%, -50%);
-                width: 90%; max-height: 90vh;
-            }
-        }
+        #ui-panel.open { transform: translateX(0); }
 
-        .panel-header {
-            display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1px solid #555; padding-bottom: 12px; margin-bottom: 18px;
-        }
-        h2 { margin: 0; font-size: 20px; color: #ffeb3b; } /* 標題加大 */
-        #close-menu-btn { background: none; border: none; color: #aaa; font-size: 28px; cursor: pointer; padding: 5px;}
+        .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        h2 { margin: 0; font-size: 22px; color: #ffca28; }
+        #close-menu-btn { background: none; border: none; color: #fff; font-size: 28px; cursor: pointer; }
 
-        .toggle-group { display: flex; gap: 10px; margin-bottom: 15px; background: #333; padding: 10px; border-radius: 6px; }
-        .toggle-btn { width: 100%; padding: 12px; font-size: 15px; cursor: pointer; border: 1px solid #555; border-radius: 4px; background: #222; color: #aaa; text-align: center; }
+        .control-group { margin-bottom: 25px; }
+        label { display: block; margin-bottom: 10px; font-size: 16px; color: #ccc; font-weight: bold; }
+        select, textarea, input { width: 100%; padding: 14px; background: #2c2c2c; border: 1px solid #444; color: white; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+        
+        .toggle-btn { width: 100%; padding: 14px; background: #333; color: #aaa; border: 1px solid #444; border-radius: 8px; font-size: 16px; cursor: pointer; text-align: center; }
         .toggle-btn.active { background: #4caf50; color: white; border-color: #4caf50; }
 
-        .nav-controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 18px; background: #222; padding: 12px; border-radius: 8px; }
-        .nav-btn { padding: 15px 5px; background: #444; color: #fff; border: 1px solid #555; border-radius: 6px; cursor: pointer; font-size: 16px; text-align: center; } /* 按鈕加大 */
-        .nav-btn:active { background: #666; }
+        .btn-primary { width: 100%; padding: 16px; background: #ffca28; color: #000; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-copy { width: 100%; padding: 16px; background: #00e676; color: #000; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; display: none; }
 
-        .control-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 8px; font-size: 15px; color: #ccc; } /* 標籤加大 */
-        input, select, textarea { width: 100%; padding: 12px; box-sizing: border-box; background: #222; border: 1px solid #555; color: white; border-radius: 6px; font-size: 16px; } /* 輸入框加大 */
+        #result-area { margin-top: 20px; padding: 15px; background: #000; border: 1px solid #333; border-radius: 8px; min-height: 80px; font-size: 14px; line-height: 1.6; color: #ffeb3b; word-wrap: break-word; }
 
-        .btn-primary { width: 100%; padding: 14px; background: #ffca28; color: #000; border: none; border-radius: 6px; cursor: pointer; font-size: 18px; font-weight: bold; margin-top: 10px; }
-        .btn-copy { width: 100%; padding: 14px; background: #00e676; color: #000; border: none; border-radius: 6px; cursor: pointer; font-size: 18px; font-weight: bold; margin-top: 10px; display: none; }
-        
-        #result-area { margin-top: 15px; padding: 12px; background: #111; border: 1px solid #333; border-radius: 6px; min-height: 70px; font-size: 14px; font-family: 'Courier New', monospace; line-height: 1.5; word-wrap: break-word; color: #ffeb3b; }
-
-        #history-area { margin-top: 25px; border-top: 1px solid #555; padding-top: 15px; }
-        .history-title { font-size: 14px; color: #aaa; margin-bottom: 8px; }
-        .history-item { background: #222; padding: 12px; margin-bottom: 8px; border-radius: 6px; font-size: 13px; color: #ccc; cursor: pointer; border-left: 4px solid #555; }
-        .history-item:hover { background: #333; border-left-color: #ffca28; }
-
-        .disclaimer-box {
-            background: rgba(255, 152, 0, 0.15); border: 1px solid #ff9800; border-radius: 6px;
-            padding: 12px; margin-bottom: 18px; font-size: 14px; color: #ffb74d; line-height: 1.5;
+        @media (max-width: 600px) {
+            #lens-bar { bottom: 20px; width: 90%; justify-content: space-around; }
+            .lens-btn { font-size: 14px; }
+            #ui-panel { width: 100%; }
         }
-        .disclaimer-icon { font-size: 18px; margin-right: 5px; vertical-align: middle; }
 
     </style>
     
@@ -124,246 +113,347 @@
                 <div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div>
             </div>
         </div>
-        <div id="center-marker"></div>
     </div>
 
-    <button id="open-menu-btn">⚙️ 參數設定</button>
+    <button id="open-menu-btn">☰ 設定</button>
+    <button id="pov-toggle-btn" title="切換第一人稱 (POV)">🔄</button>
+
+    <div id="lens-bar">
+        <button class="lens-btn" data-lens="0.5">0.5x<span>廣角</span></button>
+        <button class="lens-btn active" data-lens="1">1x<span>標準</span></button>
+        <button class="lens-btn" data-lens="3">3x<span>特寫</span></button>
+        <button class="lens-btn" data-lens="macro" style="color:#ffeb3b;">🌷<span>微距</span></button>
+    </div>
 
     <div id="ui-panel">
         <div class="panel-header">
-            <h2>🍌 鏡位大師 V12</h2>
+            <h2>V13.1 鏡位大師</h2>
             <button id="close-menu-btn">×</button>
         </div>
-
-        <label>視覺輔助 (Visual Aids)</label>
-        <div class="toggle-group">
-            <div class="toggle-btn" id="toggleGrid">📅 九宮格開關</div>
-        </div>
-
-        <button id="resetBtn" class="btn-primary" style="background:#444; color:#ddd; margin-top:0; margin-bottom:15px; font-size:14px; padding:10px;">↺ 重置視角</button>
-
-        <div class="nav-label">手機變焦與移動 (Zoom & Move)</div>
-        <div class="nav-controls">
-            <button class="nav-btn" id="navZoomIn">➕ 拉近</button>
-            <button class="nav-btn" id="navUp">⬆️ 上移</button>
-            <button class="nav-btn" id="navZoomOut">➖ 拉遠</button>
-            <button class="nav-btn" id="navLeft">⬅️ 左轉</button>
-            <button class="nav-btn" id="navDown">⬇️ 下移</button>
-            <button class="nav-btn" id="navRight">➡️ 右轉</button>
-        </div>
-        
         <div class="control-group">
-            <label>畫面比例 (構圖綠框)</label>
+            <div class="toggle-btn" id="toggleGrid">📅 九宮格參考線</div>
+        </div>
+        <div class="control-group">
+            <label>畫面比例</label>
             <select id="aspectRatio">
-                <option value="16:9" selected>16:9 (橫向電影)</option>
-                <option value="9:16">9:16 (手機短影音)</option>
-                <option value="4:3">4:3 (傳統電視)</option>
-                <option value="1:1">1:1 (方形 IG)</option>
-                <option value="21:9">21:9 (超寬螢幕)</option>
+                <option value="16:9" selected>16:9 (電影)</option>
+                <option value="9:16">9:16 (Shorts/Reels)</option>
+                <option value="4:3">4:3 (電視)</option>
+                <option value="1:1">1:1 (IG)</option>
             </select>
         </div>
-
         <div class="control-group">
             <label>風格 (Style)</label>
             <select id="style">
-                <option value="Photorealistic, 8k, highly detailed" selected>1. 寫實 (Realistic)</option>
-                <option value="Cinematic lighting, moody">2. 電影感 (Cinematic)</option>
-                <option value="Anime style, vibrant colors">3. 動漫 (Anime)</option>
-                <option value="3D render, c4d, blender, octane render">4. 3D (Three Dimensional)</option>
-                <option value="Black and white photography, noir">5. 黑白 (Black & White)</option>
-                <option value="SURPRISE_ME">🎲 Surprise me ! (隨機)</option>
+                <option value="Photorealistic, 8k, highly detailed" selected>寫實 (Realistic)</option>
+                <option value="Cinematic lighting, moody">電影感 (Cinematic)</option>
+                <option value="Anime style, vibrant colors">動漫 (Anime)</option>
+                <option value="3D render, c4d, octane render">3D 渲染 (3D Render)</option>
+                <option value="Black and white photography, noir">黑白 (B&W)</option>
             </select>
         </div>
-
         <div class="control-group">
             <label>場景描述</label>
-            <textarea id="sceneDesc" rows="3" placeholder="例如：一位男子在抽菸..."></textarea>
+            <textarea id="sceneDesc" rows="3" placeholder="例如：一位特務拿著槍..."></textarea>
         </div>
-        
-        <div class="disclaimer-box">
-            <span class="disclaimer-icon">📷</span>
-            <b>操作提示：</b><br>
-            請直接縮放或移動木偶人到綠框內的理想位置。「所見即所得」，不用擔心焦段數據。
-        </div>
-
-        <button id="generateBtn" class="btn-primary">生成 Prompt</button>
-        
-        <div id="result-area">(點擊生成...)</div>
-        <button id="copyBtn" class="btn-copy">📋 複製 Prompt</button>
-
-        <div id="history-area">
-            <div class="history-title">📜 歷史紀錄</div>
-            <div id="history-list"></div>
-        </div>
+        <button id="resetBtn" class="toggle-btn" style="margin-bottom:10px; background:#444;">↺ 重置人物位置</button>
+        <button id="generateBtn" class="btn-primary">✨ 生成 Prompt</button>
+        <div id="result-area">(等待生成...)</div>
+        <button id="copyBtn" class="btn-copy">📋 複製</button>
     </div>
 
     <script>
-        // --- UI 控制 ---
-        const uiPanel = document.getElementById('ui-panel');
-        const openBtn = document.getElementById('open-menu-btn');
-        const closeBtn = document.getElementById('close-menu-btn');
+        let camera, scene, renderer, controls;
+        let dummyGroup, headMesh, armL, armR;
+        let isPovMode = false;
+        let currentLens = '1'; 
+        let initialCamPos = new THREE.Vector3(0, 1.5, 3.5);
         
-        if (window.innerWidth > 600) { uiPanel.style.display = 'block'; openBtn.style.display = 'none'; } 
-        else { uiPanel.style.display = 'none'; openBtn.style.display = 'flex'; }
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a1a);
+            scene.fog = new THREE.Fog(0x1a1a1a, 2, 20);
 
-        openBtn.addEventListener('click', () => { uiPanel.style.display = 'block'; openBtn.style.display = 'none'; });
-        closeBtn.addEventListener('click', () => { uiPanel.style.display = 'none'; openBtn.style.display = 'flex'; });
+            // V13.1 修改：near 設為 0.01，避免手離太近被裁切
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.01, 1000);
+            camera.position.copy(initialCamPos);
 
-        // --- 視覺輔助 (V12 修正版) ---
-        const gridLayer = document.getElementById('grid-layer'); // 注意這裡改抓 grid-layer
-        const aspectFrame = document.getElementById('aspect-frame');
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0x404040, 1.5); scene.add(ambientLight);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.5); 
+            dirLight.position.set(5, 10, 7); dirLight.castShadow = true; scene.add(dirLight);
+            
+            const gridHelper = new THREE.GridHelper(20, 20, 0x333333, 0x222222); scene.add(gridHelper);
+            
+            createDummy();
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.target.set(0, 1.2, 0);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            window.addEventListener('resize', onWindowResize, false);
+            animate();
+        }
+
+        function createDummy() {
+            dummyGroup = new THREE.Group();
+            const skinMat = new THREE.MeshStandardMaterial({ color: 0xccaa88, roughness: 0.4 });
+            
+            headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.25, 32, 32), skinMat);
+            headMesh.position.y = 1.7; 
+            headMesh.castShadow = true;
+            
+            const nose = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.15), new THREE.MeshStandardMaterial({color: 0xff5555}));
+            nose.position.set(0, 0, 0.25);
+            headMesh.add(nose);
+            dummyGroup.add(headMesh);
+
+            const body = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.2, 0.7, 32), skinMat);
+            body.position.y = 1.15; body.castShadow = true;
+            dummyGroup.add(body);
+
+            const armGeo = new THREE.CylinderGeometry(0.08, 0.07, 0.75);
+            armGeo.translate(0, -0.3, 0);
+
+            armL = new THREE.Mesh(armGeo, skinMat);
+            armL.position.set(0.35, 1.45, 0); 
+            armL.rotation.z = -0.2; 
+            dummyGroup.add(armL);
+
+            armR = new THREE.Mesh(armGeo, skinMat);
+            armR.position.set(-0.35, 1.45, 0); 
+            armR.rotation.z = 0.2; 
+            dummyGroup.add(armR);
+
+            const legGeo = new THREE.CylinderGeometry(0.1, 0.08, 0.85);
+            const legL = new THREE.Mesh(legGeo, skinMat); legL.position.set(0.15, 0.4, 0); dummyGroup.add(legL);
+            const legR = new THREE.Mesh(legGeo, skinMat); legR.position.set(-0.15, 0.4, 0); dummyGroup.add(legR);
+
+            scene.add(dummyGroup);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            updateFrameSize();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        const lensBtns = document.querySelectorAll('.lens-btn');
+        lensBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                lensBtns.forEach(b => { b.classList.remove('active'); b.classList.remove('macro-active'); });
+                const target = e.currentTarget;
+                target.classList.add('active');
+                if(target.dataset.lens === 'macro') target.classList.add('macro-active');
+                setLens(target.dataset.lens);
+            });
+        });
+
+        function setLens(lensType) {
+            currentLens = lensType;
+            if (isPovMode && lensType !== '0.5') togglePOV(false); 
+
+            switch(lensType) {
+                case '0.5': camera.fov = 90; break;
+                case '1': 
+                    camera.fov = 50; 
+                    if(controls.getDistance() < 1) controls.minDistance = 1.5; 
+                    break;
+                case '3': camera.fov = 25; break;
+                case 'macro': 
+                    camera.fov = 35;
+                    const dir = new THREE.Vector3();
+                    camera.getWorldDirection(dir);
+                    const targetPos = controls.target.clone();
+                    const newPos = targetPos.clone().add(dir.multiplyScalar(-0.5)); 
+                    camera.position.copy(newPos);
+                    break;
+            }
+            camera.updateProjectionMatrix();
+        }
+
+        const povBtn = document.getElementById('pov-toggle-btn');
+        povBtn.addEventListener('click', () => togglePOV(!isPovMode));
+
+        function togglePOV(enable) {
+            isPovMode = enable;
+            
+            if (isPovMode) {
+                // --- V13.1 修正：開啟 POV ---
+                povBtn.classList.add('active');
+                povBtn.innerHTML = '🧟';
+
+                // 1. 舉手 + 內縮 (為了讓廣角拍到手)
+                armL.rotation.x = -1.6; 
+                armL.rotation.z = -0.5; // 內夾
+                armR.rotation.x = -1.6;
+                armR.rotation.z = 0.5;  // 內夾
+
+                // 2. 隱形頭
+                headMesh.visible = false;
+
+                // 3. 鏡頭 0.5x
+                document.querySelector('[data-lens="0.5"]').click();
+
+                // 4. 【關鍵修正】靈魂歸位術
+                // 攝影機放在「腦後」 (Z = -0.1)
+                // 目標點放在「眼前」 (Z = 0.1)
+                // 這樣旋轉半徑只有 0.2，就像轉頭，不會繞到身體對面去！
+                camera.position.set(0, 1.65, -0.1);
+                controls.target.set(0, 1.65, 0.1); 
+                
+                // 5. 轉頭限制
+                controls.minAzimuthAngle = -0.8; 
+                controls.maxAzimuthAngle = 0.8;
+                controls.minPolarAngle = 1.2;    
+                controls.maxPolarAngle = 1.9;    
+                controls.update();
+
+            } else {
+                // --- 關閉 POV ---
+                povBtn.classList.remove('active');
+                povBtn.innerHTML = '🔄';
+
+                armL.rotation.x = 0;
+                armL.rotation.z = -0.2;
+                armR.rotation.x = 0;
+                armR.rotation.z = 0.2;
+
+                headMesh.visible = true;
+
+                document.querySelector('[data-lens="1"]').click();
+
+                camera.position.copy(initialCamPos);
+                controls.target.set(0, 1.2, 0);
+
+                controls.minAzimuthAngle = -Infinity;
+                controls.maxAzimuthAngle = Infinity;
+                controls.minPolarAngle = 0;
+                controls.maxPolarAngle = Math.PI;
+                controls.update();
+            }
+        }
+
+        const uiPanel = document.getElementById('ui-panel');
+        document.getElementById('open-menu-btn').addEventListener('click', () => uiPanel.classList.add('open'));
+        document.getElementById('close-menu-btn').addEventListener('click', () => uiPanel.classList.remove('open'));
+
         const toggleGrid = document.getElementById('toggleGrid');
-        const aspectRatioSel = document.getElementById('aspectRatio');
-
-        // 九宮格開關：控制 grid-layer 的顯示
+        const gridLayer = document.getElementById('grid-layer');
         let isGridOn = false;
         toggleGrid.addEventListener('click', () => {
             isGridOn = !isGridOn;
-            gridLayer.style.display = isGridOn ? 'flex' : 'none'; // flex 才能讓格子排列
+            gridLayer.style.display = isGridOn ? 'flex' : 'none';
             toggleGrid.classList.toggle('active', isGridOn);
         });
 
-        // 綠框邏輯
-        updateFrameSize();
+        const aspectFrame = document.getElementById('aspect-frame');
+        const aspectRatioSel = document.getElementById('aspectRatio');
         aspectRatioSel.addEventListener('change', updateFrameSize);
-        window.addEventListener('resize', updateFrameSize);
-
         function updateFrameSize() {
             const ratioStr = aspectRatioSel.value;
             const parts = ratioStr.split(':');
             const ratioVal = parseFloat(parts[0]) / parseFloat(parts[1]);
-            const margin = 40; 
+            const margin = 20; 
             const maxW = window.innerWidth - margin;
-            const maxH = window.innerHeight - margin;
+            const maxH = window.innerHeight - margin; 
             let finalW = maxW;
             let finalH = finalW / ratioVal;
             if (finalH > maxH) { finalH = maxH; finalW = finalH * ratioVal; }
             aspectFrame.style.width = finalW + 'px';
             aspectFrame.style.height = finalH + 'px';
         }
+        updateFrameSize();
 
-        // --- Three.js 初始化 ---
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x202020); 
-        scene.fog = new THREE.Fog(0x202020, 5, 50);
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            if(isPovMode) togglePOV(false); 
+            camera.position.copy(initialCamPos);
+            controls.target.set(0, 1.2, 0);
+            controls.update();
+            document.querySelector('[data-lens="1"]').click(); 
+        });
 
-        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const initialCamPos = new THREE.Vector3(-3, 3, 4); 
-        camera.position.copy(initialCamPos);
-
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
-        document.getElementById('canvas-container').appendChild(renderer.domElement);
-
-        const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x333333); scene.add(gridHelper);
-        const planeGeometry = new THREE.PlaneGeometry(20, 20);
-        const planeMaterial = new THREE.MeshStandardMaterial({ color: 0x111111 });
-        const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-        plane.rotation.x = -Math.PI / 2; plane.receiveShadow = true; scene.add(plane);
-
-        const dummyGroup = new THREE.Group();
-        const material = new THREE.MeshStandardMaterial({ color: 0xccaa88, roughness: 0.5 });
-        const headGroup = new THREE.Group(); headGroup.position.y = 1.75;
-        const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.25, 32, 32), material); headMesh.castShadow = true; headGroup.add(headMesh);
-        const nose = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.15), new THREE.MeshStandardMaterial({ color: 0xff3333 })); 
-        nose.position.set(0, 0, 0.25); headGroup.add(nose);
-        dummyGroup.add(headGroup);
-        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.2, 0.7, 32), material); 
-        body.position.y = 1.15; body.castShadow = true; dummyGroup.add(body);
-        const armGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.7);
-        const armL = new THREE.Mesh(armGeo, material); armL.position.set(0.35, 1.2, 0); armL.rotation.z = -0.2; dummyGroup.add(armL);
-        const armR = new THREE.Mesh(armGeo, material); armR.position.set(-0.35, 1.2, 0); armR.rotation.z = 0.2; dummyGroup.add(armR);
-        const legGeo = new THREE.CylinderGeometry(0.1, 0.08, 0.8);
-        const legL = new THREE.Mesh(legGeo, material); legL.position.set(0.15, 0.4, 0); dummyGroup.add(legL);
-        const legR = new THREE.Mesh(legGeo, material); legR.position.set(-0.15, 0.4, 0); dummyGroup.add(legR);
-        scene.add(dummyGroup);
-
-        const ambientLight = new THREE.AmbientLight(0x404040, 1.5); scene.add(ambientLight);
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.5); dirLight.position.set(5, 10, 7); dirLight.castShadow = true; scene.add(dirLight);
-
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        const targetCenter = new THREE.Vector3(0, 1.2, 0);
-        controls.target.copy(targetCenter); controls.update();
-
-        document.getElementById('navLeft').addEventListener('click', () => { controls.autoRotate = false; camera.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), -0.1); controls.update(); });
-        document.getElementById('navRight').addEventListener('click', () => { controls.autoRotate = false; camera.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.1); controls.update(); });
-        document.getElementById('navZoomIn').addEventListener('click', () => { const dir = new THREE.Vector3(); camera.getWorldDirection(dir); camera.position.add(dir.multiplyScalar(0.5)); controls.update(); });
-        document.getElementById('navZoomOut').addEventListener('click', () => { const dir = new THREE.Vector3(); camera.getWorldDirection(dir); camera.position.add(dir.multiplyScalar(-0.5)); controls.update(); });
-        document.getElementById('navUp').addEventListener('click', () => { camera.position.y += 0.2; controls.target.y += 0.2; controls.update(); });
-        document.getElementById('navDown').addEventListener('click', () => { camera.position.y -= 0.2; controls.target.y -= 0.2; controls.update(); });
-        document.getElementById('resetBtn').addEventListener('click', () => { camera.position.copy(initialCamPos); controls.target.copy(targetCenter); controls.update(); });
-
-        window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
-        function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
-        animate();
-
-        // --- 生成邏輯 ---
-        const hiddenStyles = ["Cyberpunk style, neon lights, futuristic city", "Watercolor painting, soft pastel colors, artistic", "Claymation style, stop motion, plasticine texture", "Ukiyo-e style, japanese traditional art, woodblock print", "Pixel art, 16-bit game style, retro", "Steampunk, brass gears, steam, victorian industrial", "Synthwave, retro 80s aesthetics, purple and teal grid", "Polaroid photo, vintage film grain, flash photography"];
+        const hiddenStyles = ["Cyberpunk, neon", "Watercolor", "Claymation", "Ukiyo-e", "Pixel art", "Steampunk", "Synthwave", "Polaroid"];
 
         document.getElementById('generateBtn').addEventListener('click', () => {
-            const focalLen = "35"; 
-            const aperture = "f/1.8"; 
-            
             let style = document.getElementById('style').value;
-            if (style === "SURPRISE_ME") { style = hiddenStyles[Math.floor(Math.random() * hiddenStyles.length)]; }
+            if (style.includes('SURPRISE')) style = hiddenStyles[Math.floor(Math.random() * hiddenStyles.length)];
+            
+            let lensPrompt = "";
+            let shotType = "";
+            
+            switch(currentLens) {
+                case '0.5':
+                    lensPrompt = "Wide angle lens, 16mm, distortion, dynamic action";
+                    break;
+                case '1':
+                    lensPrompt = "35mm lens, standard view, realistic proportion";
+                    break;
+                case '3':
+                    lensPrompt = "Telephoto lens, 85mm, compressed background, bokeh, flattering portrait";
+                    break;
+                case 'macro':
+                    lensPrompt = "Macro photography, 100mm macro lens, extreme close-up, detailed texture, shallow depth of field";
+                    shotType = "Extreme Close-up";
+                    break;
+            }
 
-            const ratioVal = aspectRatioSel.value;
-            const aspectRatioTag = `(${ratioVal} aspect ratio)`;
-            const userDesc = document.getElementById('sceneDesc').value.trim() || "a character standing";
+            let povPrompt = "";
+            if (isPovMode) {
+                povPrompt = "(POV), (First Person Perspective), (view from eyes), visible hands, holding object, arms reaching out, immersive, FPS game style, ";
+                shotType = "Point of View Shot"; 
+            }
 
-            const distance = camera.position.distanceTo(controls.target);
-            let shotType = "Medium Shot";
-            if (distance < 1.5) shotType = "Extreme Close-up"; else if (distance < 2.5) shotType = "Close-up"; else if (distance < 4.5) shotType = "Medium Shot"; else if (distance < 8.0) shotType = "Full Body Shot"; else shotType = "Wide Shot";
+            if (!shotType) {
+                const dist = camera.position.distanceTo(controls.target);
+                if (dist < 1.5) shotType = "Close-up";
+                else if (dist < 3.0) shotType = "Medium Shot";
+                else if (dist < 6.0) shotType = "Full Body Shot";
+                else shotType = "Wide Shot";
+            }
 
-            const heightDiff = camera.position.y - controls.target.y;
-            let angleType = "Eye-level angle";
-            if (heightDiff > 0.8) angleType = "High angle shot"; else if (heightDiff < -0.5) angleType = "Low angle shot";
+            const hDiff = camera.position.y - controls.target.y;
+            let angleType = "Eye-level";
+            if (hDiff > 0.8) angleType = "High angle";
+            else if (hDiff < -0.5) angleType = "Low angle";
 
-            let camDirX = camera.position.x - controls.target.x;
-            let camDirZ = camera.position.z - controls.target.z;
-            const length = Math.sqrt(camDirX * camDirX + camDirZ * camDirZ);
-            camDirZ /= length; const dotProduct = camDirZ;
-
-            let facingType = "";
-            if (dotProduct > 0.8) { facingType = ", Front view"; } else if (dotProduct < -0.8) { facingType = ", Back view from behind"; } else { if (camera.position.x > controls.target.x) { facingType = ", Side profile view facing left"; } else { facingType = ", Side profile view facing right"; } }
-
-            const dummyPos = new THREE.Vector3(0, 1.2, 0);
-            dummyPos.project(camera); 
-            let positionPrompt = "";
-            if (dummyPos.x < -0.2) { positionPrompt = ", subject on the left, rule of thirds"; } 
-            else if (dummyPos.x > 0.2) { positionPrompt = ", subject on the right, rule of thirds"; } 
-            else { positionPrompt = ", centered composition"; }
-
-            const finalPrompt = `${style}, ${userDesc}${facingType}, ${shotType}, ${angleType}${positionPrompt}, ${focalLen}mm lens, ${aperture}, depth of field, natural lighting, highly detailed, ${aspectRatioTag}, (best quality), (masterpiece), (highres)`;
+            const userDesc = document.getElementById('sceneDesc').value.trim() || "character";
+            const ratio = aspectRatioSel.value;
+            
+            const finalPrompt = `${povPrompt}${style}, ${userDesc}, ${shotType}, ${angleType}, ${lensPrompt}, (${ratio} aspect ratio), (best quality), (masterpiece)`;
 
             const resultArea = document.getElementById('result-area');
             resultArea.innerText = finalPrompt;
 
             const copyBtn = document.getElementById('copyBtn');
-            copyBtn.style.display = 'block'; copyBtn.innerText = '📋 複製 Prompt'; copyBtn.style.background = '#00e676';
-            addToHistory(finalPrompt);
+            copyBtn.style.display = 'block';
+            copyBtn.innerText = '📋 複製 Prompt';
+            copyBtn.style.background = '#00e676';
         });
 
         const copyBtn = document.getElementById('copyBtn');
         copyBtn.addEventListener('click', () => {
             const text = document.getElementById('result-area').innerText;
             navigator.clipboard.writeText(text).then(() => {
-                copyBtn.innerText = '✅ 已複製！'; copyBtn.style.background = '#4caf50';
-                setTimeout(() => { copyBtn.innerText = '📋 複製 Prompt'; copyBtn.style.background = '#00e676'; }, 2000);
-            }).catch(err => { alert('複製失敗，請手動複製'); });
+                copyBtn.innerText = '✅ 已複製！'; 
+                copyBtn.style.background = '#4caf50';
+                setTimeout(() => { copyBtn.innerText = '📋 複製'; copyBtn.style.background = '#00e676'; }, 2000);
+            });
         });
 
-        function addToHistory(text) {
-            const list = document.getElementById('history-list');
-            const item = document.createElement('div');
-            item.className = 'history-item';
-            item.innerText = text.substring(0, 50) + '...';
-            item.addEventListener('click', () => { navigator.clipboard.writeText(text); alert('已複製舊 Prompt！'); });
-            list.insertBefore(item, list.firstChild);
-            if (list.children.length > 5) { list.removeChild(list.lastChild); }
-        }
+        init();
     </script>
 </body>
 </html>
-

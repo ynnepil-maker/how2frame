@@ -436,4 +436,16 @@
         });
 
         const copyBtn = document.getElementById('copyBtn');
-        copyBt
+        copyBtn.addEventListener('click', () => {
+            const text = document.getElementById('result-area').innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                copyBtn.innerText = '✅ 已複製！'; 
+                copyBtn.style.background = '#4caf50';
+                setTimeout(() => { copyBtn.innerText = '📋 複製'; copyBtn.style.background = '#00e676'; }, 2000);
+            });
+        });
+
+        init();
+    </script>
+</body>
+</html>
